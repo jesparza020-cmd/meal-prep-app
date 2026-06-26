@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { generateWeek } from './planner'
-import type { Recipe, Targets, WeekPlan, Slot } from '../types'
+import { generateWeek, generatePlan, defaultConfig, recalcScales } from './planner'
+import type { Recipe, Targets, WeekPlan, Slot, PlanConfig, SlotConfig } from '../types'
 
 let idc = 0
 function recipe(slot: Slot, m: Partial<Recipe['perServing']>): Recipe {
@@ -67,5 +67,69 @@ describe('generateWeek', () => {
     const plan = generateWeek(library(), target, [])
     expect(plan.totals.kcal).toBeGreaterThan(target.kcal * 0.9)
     expect(plan.totals.kcal).toBeLessThan(target.kcal * 1.1)
+  })
+})
+
+function cfg(over: Partial<Record<Slot, Partial<SlotConfig>>> = {}): PlanConfig {
+  const base = defaultConfig()
+  for (const k of Object.keys(over) as Slot[]) base[k] = { ...base[k], ...over[k]! }
+  return base
+}
+
+describe('generatePlan', () => {
+  it('omits excluded slots from the plan', () => {
+    const plan = generatePlan(library(), target, cfg({ snack: { include: false } }), [])
+    expect(plan.slots.snack).toBeUndefined()
+    expect(plan.slots.breakfast).toBeDefined()
+  })
+
+  it('honors an exact recipe pick', () => {
+    const lib = library()
+    const chosen = lib.find((r) => r.slot === 'dinner')!
+    const plan = generatePlan(
+      lib, target, cfg({ dinner: { mode: 'exact', recipeId: chosen.id } }), [],
+    )
+    expect(plan.slots.dinner).toBe(chosen.id)
+  })
+
+  it('matches a base by ingredient name', () => {
+    const lib = library()
+    const chicken = recipe('dinner', {})
+    chicken.ingredients = [{ name: 'Grilled Chicken', qty: 150, unit: 'g' }]
+    const tofu = recipe('dinner', {})
+    tofu.ingredients = [{ name: 'Tofu', qty: 150, unit: 'g' }]
+    const onlyDinner = lib.filter((r) => r.slot !== 'dinner').concat(chicken, tofu)
+    const plan = generatePlan(
+      onlyDinner, target, cfg({ dinner: { mode: 'base', base: 'chicken' } }), [],
+    )
+    expect(plan.slots.dinner).toBe(chicken.id)
+  })
+
+  it('treats a dinner recipe tagged for lunch as a lunch candidate', () => {
+    const lib = library().filter((r) => r.slot !== 'lunch')
+    const dual = recipe('dinner', {})
+    dual.usableForSlots = ['lunch', 'dinner']
+    const plan = generatePlan(
+      lib.concat(dual), target, cfg({ lunch: { mode: 'exact', recipeId: dual.id } }), [],
+    )
+    expect(plan.slots.lunch).toBe(dual.id)
+  })
+})
+
+describe('recalcScales', () => {
+  it('recomputes scales within each recipe\'s bounds for the current slots', () => {
+    const lib = library()
+    const plan = generatePlan(lib, target, defaultConfig(), [])
+    const otherDinner = lib.find((r) => r.slot === 'dinner' && r.id !== plan.slots.dinner)!
+    const swapped: WeekPlan = { ...plan, slots: { ...plan.slots, dinner: otherDinner.id } }
+    const out = recalcScales(lib, swapped, target)
+
+    for (const s of Object.keys(out.slots) as Slot[]) {
+      const r = lib.find((x) => x.id === out.slots[s])!
+      expect(out.scales[s]!).toBeGreaterThanOrEqual(r.minScale)
+      expect(out.scales[s]!).toBeLessThanOrEqual(r.maxScale)
+    }
+    expect(out.totals.kcal).toBeGreaterThan(target.kcal * 0.8)
+    expect(out.totals.kcal).toBeLessThan(target.kcal * 1.2)
   })
 })

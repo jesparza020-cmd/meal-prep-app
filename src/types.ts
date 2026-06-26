@@ -34,16 +34,35 @@ export interface Recipe {
   minScale: number; // smallest portion multiplier allowed
   maxScale: number; // largest portion multiplier allowed
   source: 'seed' | 'custom';
+  usableForSlots?: Slot[]; // slots this meal can fill; defaults to [slot]
 }
 
 export type Targets = Macros;
 
 export interface WeekPlan {
   weekStartISO: string;
-  slots: Record<Slot, string>; // slot -> recipe id
-  scales: Record<Slot, number>; // slot -> portion multiplier
+  slots: Partial<Record<Slot, string>>; // slot -> recipe id (subset allowed)
+  scales: Partial<Record<Slot, number>>; // slot -> portion multiplier
   totals: Macros;
   targets: Targets;
+}
+
+export interface SlotConfig {
+  include: boolean;
+  mode: 'random' | 'base' | 'exact';
+  base?: string;
+  recipeId?: string;
+}
+
+export type PlanConfig = Record<Slot, SlotConfig>;
+
+/** Slots a recipe is eligible to fill (defaults to its primary slot). */
+export function slotsFor(recipe: Recipe): Slot[] {
+  return recipe.usableForSlots ?? [recipe.slot];
+}
+
+export function eligibleForSlot(recipe: Recipe, slot: Slot): boolean {
+  return slotsFor(recipe).includes(slot);
 }
 
 export interface AppState {
