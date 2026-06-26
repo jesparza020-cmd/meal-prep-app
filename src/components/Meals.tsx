@@ -88,6 +88,10 @@ function RecipeEditor({
 }) {
   const [name, setName] = useState(recipe?.name ?? '')
   const [slot, setSlot] = useState<Slot>(recipe?.slot ?? 'breakfast')
+  const [dualLunchDinner, setDualLunchDinner] = useState(
+    (recipe?.usableForSlots ?? []).includes('lunch') &&
+      (recipe?.usableForSlots ?? []).includes('dinner'),
+  )
   const [servingLabel, setServingLabel] = useState(recipe?.baseServingLabel ?? '1 serving')
   const [protein, setProtein] = useState(String(recipe?.perServing.protein ?? 25))
   const [carbs, setCarbs] = useState(String(recipe?.perServing.carbs ?? 30))
@@ -104,6 +108,10 @@ function RecipeEditor({
 
   const save = () => {
     if (!name.trim()) return
+    const usableForSlots =
+      dualLunchDinner && (slot === 'lunch' || slot === 'dinner')
+        ? (['lunch', 'dinner'] as Slot[])
+        : undefined
     const r: Recipe = {
       id: recipe?.source === 'custom' ? recipe.id : `c${Date.now()}`,
       name: name.trim(),
@@ -115,6 +123,7 @@ function RecipeEditor({
       minScale: Number(minScale) || 0.5,
       maxScale: Number(maxScale) || 2.5,
       source: 'custom',
+      ...(usableForSlots ? { usableForSlots } : {}),
     }
     onSubmit(r)
   }
@@ -135,6 +144,16 @@ function RecipeEditor({
           ))}
         </select>
       </div>
+      {(slot === 'lunch' || slot === 'dinner') && (
+        <label className="field checkbox-field">
+          <input
+            type="checkbox"
+            checked={dualLunchDinner}
+            onChange={(e) => setDualLunchDinner(e.target.checked)}
+          />
+          <span>Also usable for {slot === 'lunch' ? 'dinner' : 'lunch'}</span>
+        </label>
+      )}
       <div className="field">
         <label>Base serving label</label>
         <input value={servingLabel} onChange={(e) => setServingLabel(e.target.value)} />

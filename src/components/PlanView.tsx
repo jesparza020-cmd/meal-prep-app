@@ -1,13 +1,13 @@
-import { useState } from 'react'
-import type { Macros, Recipe, Targets, WeekPlan } from '../types'
+import type { Recipe, Targets, WeekPlan } from '../types'
 import { SLOTS, SLOT_LABELS } from '../types'
-import { pctDiff, r0, r1, scaleMacros } from '../lib/nutrition'
+import { pctDiff, r0 } from '../lib/nutrition'
+import { MealCard } from './MealCard'
 
 interface Props {
   plan: WeekPlan | null
   targets: Targets | null
   recipesById: Map<string, Recipe>
-  onRegenerate: () => void
+  onNewPlan: () => void
   onGoToTargets: () => void
 }
 
@@ -18,7 +18,7 @@ function fitClass(diff: number): string {
   return 'off'
 }
 
-export function PlanView({ plan, targets, recipesById, onRegenerate, onGoToTargets }: Props) {
+export function PlanView({ plan, targets, recipesById, onNewPlan, onGoToTargets }: Props) {
   if (!targets) {
     return (
       <section className="panel">
@@ -38,7 +38,7 @@ export function PlanView({ plan, targets, recipesById, onRegenerate, onGoToTarge
           cooked once and eaten all week. Portions are scaled to hit your targets, and
           next week avoids what you just had.
         </p>
-        <button className="primary" onClick={onRegenerate}>Generate this week</button>
+        <button className="primary" onClick={onNewPlan}>＋ New meal plan</button>
       </section>
     )
   }
@@ -70,83 +70,14 @@ export function PlanView({ plan, targets, recipesById, onRegenerate, onGoToTarge
             )
           })}
         </div>
-        <button className="primary" onClick={onRegenerate}>🔀 Generate a new week</button>
+        <button className="primary" onClick={onNewPlan}>＋ New meal plan</button>
       </div>
 
-      {SLOTS.map((slot) => {
-        const recipe = recipesById.get(plan.slots[slot])
+      {SLOTS.filter((slot) => plan.slots[slot]).map((slot) => {
+        const recipe = recipesById.get(plan.slots[slot]!)
         const scale = plan.scales[slot]
         return <MealCard key={slot} slotLabel={SLOT_LABELS[slot]} recipe={recipe} scale={scale} />
       })}
     </section>
-  )
-}
-
-function MealCard({
-  slotLabel,
-  recipe,
-  scale,
-}: {
-  slotLabel: string
-  recipe: Recipe | undefined
-  scale: number
-}) {
-  const [open, setOpen] = useState(false)
-
-  if (!recipe) {
-    return (
-      <div className="card">
-        <div className="card-head">
-          <span className="slot-tag">{slotLabel}</span>
-        </div>
-        <p className="muted">This recipe was removed. Generate a new week to replace it.</p>
-      </div>
-    )
-  }
-
-  const m: Macros = scaleMacros(recipe.perServing, scale)
-
-  return (
-    <div className="card">
-      <div className="card-head">
-        <span className="slot-tag">{slotLabel}</span>
-        <span className="portion">{r1(scale)}× portion</span>
-      </div>
-      <h3>{recipe.name}</h3>
-      <p className="muted small">{r1(scale)} × {recipe.baseServingLabel}</p>
-      <div className="macros">
-        <span><strong>{r0(m.kcal)}</strong> kcal</span>
-        <span><strong>{r0(m.protein)}</strong>g P</span>
-        <span><strong>{r0(m.carbs)}</strong>g C</span>
-        <span><strong>{r0(m.fat)}</strong>g F</span>
-      </div>
-      <button className="link" onClick={() => setOpen((o) => !o)}>
-        {open ? 'Hide' : 'How to make it'}
-      </button>
-      {open && (
-        <div className="details">
-          {recipe.ingredients.length > 0 && (
-            <>
-              <h4>Ingredients (per serving)</h4>
-              <ul>
-                {recipe.ingredients.map((ing, i) => (
-                  <li key={i}>{r1(ing.qty * scale)} {ing.unit} {ing.name}</li>
-                ))}
-              </ul>
-            </>
-          )}
-          {recipe.steps.length > 0 && (
-            <>
-              <h4>Steps</h4>
-              <ol>
-                {recipe.steps.map((step, i) => (
-                  <li key={i}>{step}</li>
-                ))}
-              </ol>
-            </>
-          )}
-        </div>
-      )}
-    </div>
   )
 }

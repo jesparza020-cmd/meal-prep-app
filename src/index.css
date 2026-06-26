@@ -91,6 +91,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); bo
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
 
+.checkbox-field { flex-direction: row; align-items: center; gap: 8px; }
+.checkbox-field input { width: auto; }
+.error-text { color: #b3261e; font-size: 14px; }
+.change-row { margin-top: -8px; }
+.history-card { display: block; width: 100%; text-align: left; cursor: pointer; border: none; font: inherit; }
+
 .kcal-readout {
   display: flex; align-items: center; justify-content: space-between;
   background: var(--accent-soft); border-radius: 10px; padding: 12px 14px;

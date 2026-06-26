@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { AppState, Recipe, Targets } from './types'
+import type { AppState, Recipe, Targets, WeekPlan } from './types'
 import { effectiveRecipes, loadState, saveState } from './state/storage'
-import { generateWeek } from './lib/planner'
 import { TargetsForm } from './components/TargetsForm'
-import { PlanView } from './components/PlanView'
+import { PlanTab } from './components/PlanTab'
 import { Meals } from './components/Meals'
 import { History } from './components/History'
 
@@ -28,11 +27,8 @@ export default function App() {
     setTab('plan')
   }
 
-  const regenerate = () => {
-    if (!state.targets) return
-    const plan = generateWeek(recipes, state.targets, state.history)
+  const approvePlan = (plan: WeekPlan) =>
     setState((s) => ({ ...s, history: [...s.history, plan] }))
-  }
 
   const addRecipe = (r: Recipe) =>
     setState((s) => ({ ...s, customRecipes: [...s.customRecipes, r] }))
@@ -69,11 +65,13 @@ export default function App() {
 
       <main className="content">
         {tab === 'plan' && (
-          <PlanView
+          <PlanTab
             plan={current}
             targets={state.targets}
+            recipes={recipes}
             recipesById={recipesById}
-            onRegenerate={regenerate}
+            history={state.history}
+            onApprove={approvePlan}
             onGoToTargets={() => setTab('targets')}
           />
         )}
