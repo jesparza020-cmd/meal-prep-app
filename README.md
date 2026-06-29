@@ -43,3 +43,17 @@ npm run build    # type-check + production build (PWA) into dist/
 
 > Data lives only on the device you use. To move to a new phone you'd re-enter
 > targets and any custom meals (single-device by design for v1).
+
+## Deployment (Cloudflare Pages)
+
+This app deploys to Cloudflare Pages (static PWA + the `functions/` serverless API).
+
+1. In the Cloudflare dashboard: **Workers & Pages → Create → Pages → Connect to Git**, select this repo.
+2. Build settings: **Build command** `npm run build`, **Build output directory** `dist`. Functions in `functions/` are detected automatically.
+3. Add the environment variable **`ANTHROPIC_API_KEY`** (Settings → Environment variables) for Production and Preview.
+4. Push to the default branch to trigger a deploy.
+
+### Local development
+
+- Frontend only: `npm run dev` (the `/api/import` call will fail without the function).
+- Full app + function: create a `.dev.vars` file with `ANTHROPIC_API_KEY=sk-ant-...` (git-ignored), then run `npm run dev:cf`.
