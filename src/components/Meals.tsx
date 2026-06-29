@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { Ingredient, Recipe, Slot } from '../types'
+import { ImportModal } from './ImportModal'
 import { SLOTS, SLOT_LABELS } from '../types'
 import { kcalFromMacros, r0 } from '../lib/nutrition'
 
@@ -13,6 +14,34 @@ interface Props {
 export function Meals({ recipes, onAdd, onUpdate, onDelete }: Props) {
   const [editing, setEditing] = useState<Recipe | null>(null)
   const [creating, setCreating] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [imported, setImported] = useState<{ recipe: Recipe; macrosMissing: boolean } | null>(null)
+
+  if (importing) {
+    return (
+      <ImportModal
+        onCancel={() => setImporting(false)}
+        onImported={(recipe, macrosMissing) => {
+          setImporting(false)
+          setImported({ recipe, macrosMissing })
+        }}
+      />
+    )
+  }
+
+  if (imported) {
+    return (
+      <RecipeEditor
+        recipe={imported.recipe}
+        macrosMissing={imported.macrosMissing}
+        onCancel={() => setImported(null)}
+        onSubmit={(r) => {
+          onAdd(r)
+          setImported(null)
+        }}
+      />
+    )
+  }
 
   if (creating || editing) {
     return (
@@ -36,7 +65,10 @@ export function Meals({ recipes, onAdd, onUpdate, onDelete }: Props) {
     <section>
       <div className="panel row-between">
         <h2>Your meals</h2>
-        <button className="primary small-btn" onClick={() => setCreating(true)}>+ Add meal</button>
+        <div className="meal-actions">
+          <button className="ghost small-btn" onClick={() => setImporting(true)}>⬆ Import</button>
+          <button className="primary small-btn" onClick={() => setCreating(true)}>+ Add meal</button>
+        </div>
       </div>
       {SLOTS.map((slot) => {
         const list = recipes.filter((r) => r.slot === slot)
@@ -81,10 +113,12 @@ function RecipeEditor({
   recipe,
   onSubmit,
   onCancel,
+  macrosMissing = false,
 }: {
   recipe: Recipe | null
   onSubmit: (r: Recipe) => void
   onCancel: () => void
+  macrosMissing?: boolean
 }) {
   const [name, setName] = useState(recipe?.name ?? '')
   const [slot, setSlot] = useState<Slot>(recipe?.slot ?? 'breakfast')
@@ -93,9 +127,9 @@ function RecipeEditor({
       (recipe?.usableForSlots ?? []).includes('dinner'),
   )
   const [servingLabel, setServingLabel] = useState(recipe?.baseServingLabel ?? '1 serving')
-  const [protein, setProtein] = useState(String(recipe?.perServing.protein ?? 25))
-  const [carbs, setCarbs] = useState(String(recipe?.perServing.carbs ?? 30))
-  const [fat, setFat] = useState(String(recipe?.perServing.fat ?? 10))
+  const [protein, setProtein] = useState(macrosMissing ? '' : String(recipe?.perServing.protein ?? 25))
+  const [carbs, setCarbs] = useState(macrosMissing ? '' : String(recipe?.perServing.carbs ?? 30))
+  const [fat, setFat] = useState(macrosMissing ? '' : String(recipe?.perServing.fat ?? 10))
   const [minScale, setMinScale] = useState(String(recipe?.minScale ?? 0.5))
   const [maxScale, setMaxScale] = useState(String(recipe?.maxScale ?? 2.5))
   const [ingredients, setIngredients] = useState(ingredientsToText(recipe?.ingredients ?? []))
@@ -106,8 +140,11 @@ function RecipeEditor({
   const f = Number(fat) || 0
   const kcal = Math.round(kcalFromMacros(p, c, f))
 
+  const macrosEntered = protein !== '' && carbs !== '' && fat !== ''
+
   const save = () => {
     if (!name.trim()) return
+    if (!macrosEntered) return
     const usableForSlots =
       dualLunchDinner && (slot === 'lunch' || slot === 'dinner')
         ? (['lunch', 'dinner'] as Slot[])
@@ -124,6 +161,7 @@ function RecipeEditor({
       maxScale: Number(maxScale) || 2.5,
       source: 'custom',
       ...(usableForSlots ? { usableForSlots } : {}),
+      ...(recipe?.importedFrom ? { importedFrom: recipe.importedFrom } : {}),
     }
     onSubmit(r)
   }
@@ -131,6 +169,11 @@ function RecipeEditor({
   return (
     <section className="panel">
       <h2>{recipe ? 'Edit meal' : 'Add meal'}</h2>
+      {macrosMissing && (
+        <p className="muted small danger">
+          Macro data could not be found — please enter protein, carbs, and fat below.
+        </p>
+      )}
 
       <div className="field">
         <label>Name</label>
@@ -182,7 +225,7 @@ function RecipeEditor({
 
       <div className="grid2">
         <button className="ghost" onClick={onCancel}>Cancel</button>
-        <button className="primary" onClick={save}>Save meal</button>
+        <button className="primary" onClick={save} disabled={!macrosEntered}>Save meal</button>
       </div>
     </section>
   )
