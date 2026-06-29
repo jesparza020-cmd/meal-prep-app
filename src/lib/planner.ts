@@ -16,6 +16,25 @@ function pick<T>(arr: T[], rng: () => number): T {
   return arr[Math.floor(rng() * arr.length)]
 }
 
+/** Default fraction of daily calories per slot (normalized over included slots). */
+const SLOT_SHARE: Record<Slot, number> = {
+  breakfast: 0.25,
+  lunch: 0.3,
+  snack: 0.1,
+  shake: 0.05,
+  dinner: 0.3,
+}
+
+/** Per-slot calorie target, shares normalized over the included slots. */
+function shareTargets(included: Slot[], dailyKcal: number): Record<Slot, number> {
+  const sum = included.reduce((s, slot) => s + SLOT_SHARE[slot], 0)
+  const out = {} as Record<Slot, number>
+  for (const slot of included) {
+    out[slot] = sum > 0 ? (SLOT_SHARE[slot] / sum) * dailyKcal : dailyKcal / included.length
+  }
+  return out
+}
+
 /** Default config: every slot included, filled randomly. */
 export function defaultConfig(): PlanConfig {
   const c = {} as PlanConfig
@@ -83,6 +102,8 @@ export function generatePlan(
     }
   }
 
+  const kcalTargets = shareTargets(included, target.kcal)
+
   let best:
     | { chosen: Record<Slot, Recipe>; scales: number[]; totals: WeekPlan['totals']; score: number }
     | null = null
@@ -95,6 +116,7 @@ export function generatePlan(
       perServing: chosen[s].perServing,
       minScale: chosen[s].minScale,
       maxScale: chosen[s].maxScale,
+      targetKcal: kcalTargets[s],
     }))
     const { scales, totals, error } = solveScales(items, target)
 
@@ -128,10 +150,16 @@ export function recalcScales(
 ): WeekPlan {
   const byId = new Map(recipes.map((r) => [r.id, r]))
   const slots = SLOTS.filter((s) => plan.slots[s])
+  const kcalTargets = shareTargets(slots, target.kcal)
   const items: SolverItem[] = slots.map((s) => {
     const r = byId.get(plan.slots[s]!)
     if (!r) throw new Error(`Recipe ${plan.slots[s]} not found for ${s}.`)
-    return { perServing: r.perServing, minScale: r.minScale, maxScale: r.maxScale }
+    return {
+      perServing: r.perServing,
+      minScale: r.minScale,
+      maxScale: r.maxScale,
+      targetKcal: kcalTargets[s],
+    }
   })
   const { scales, totals } = solveScales(items, target)
   const nextScales: WeekPlan['scales'] = {}
