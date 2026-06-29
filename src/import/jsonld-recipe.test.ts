@@ -41,3 +41,36 @@ describe('parseJsonLdRecipe', () => {
     expect(parseJsonLdRecipe('<script type="application/ld+json">{bad</script>')).toBeNull()
   })
 })
+
+function recipeWithIngredients(ingredients: string[]): string {
+  return `<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"Recipe","name":"Test","recipeIngredient":${JSON.stringify(ingredients)},"recipeInstructions":"Do it."}
+</script>`
+}
+
+describe('parseIngredient via parseJsonLdRecipe', () => {
+  it('parses whole number with unit', () => {
+    const d = parseJsonLdRecipe(recipeWithIngredients(['60 g rolled oats']))!
+    expect(d.ingredients[0]).toEqual({ name: 'rolled oats', qty: 60, unit: 'g' })
+  })
+
+  it('parses simple fraction', () => {
+    const d = parseJsonLdRecipe(recipeWithIngredients(['1/2 cup sugar']))!
+    expect(d.ingredients[0]).toEqual({ name: 'sugar', qty: 0.5, unit: 'cup' })
+  })
+
+  it('parses mixed fraction', () => {
+    const d = parseJsonLdRecipe(recipeWithIngredients(['1 1/2 tsp salt']))!
+    expect(d.ingredients[0]).toEqual({ name: 'salt', qty: 1.5, unit: 'tsp' })
+  })
+
+  it('parses unitless count', () => {
+    const d = parseJsonLdRecipe(recipeWithIngredients(['2 eggs']))!
+    expect(d.ingredients[0]).toEqual({ name: 'eggs', qty: 2, unit: '' })
+  })
+
+  it('falls back to qty 1 when there is no leading number', () => {
+    const d = parseJsonLdRecipe(recipeWithIngredients(['salt to taste']))!
+    expect(d.ingredients[0]).toEqual({ name: 'salt to taste', qty: 1, unit: '' })
+  })
+})

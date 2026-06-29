@@ -9,12 +9,29 @@ function firstNumber(s: string): number | null {
   return m ? Number(m[0]) : null
 }
 
+function parseQty(s: string): number | null {
+  const mixed = s.match(/^(\d+)\s+(\d+)\/(\d+)$/)
+  if (mixed) return Number(mixed[1]) + Number(mixed[2]) / Number(mixed[3])
+  const fraction = s.match(/^(\d+)\/(\d+)$/)
+  if (fraction) return Number(fraction[1]) / Number(fraction[2])
+  return firstNumber(s)
+}
+
 function parseIngredient(line: string): DraftIngredient {
-  const m = line.trim().match(/^([\d.,/]+)\s*([a-zA-Z]+)?\s+(.*)$/)
-  if (m && firstNumber(m[1]) !== null) {
-    return { name: m[3].trim(), qty: firstNumber(m[1])!, unit: (m[2] ?? '').trim() }
+  const trimmed = line.trim()
+  const m = trimmed.match(/^(\d+\s+\d+\/\d+|\d+\/\d+|\d+(?:[.,]\d+)?)\s+(.*)$/)
+  if (m) {
+    const qty = parseQty(m[1])
+    if (qty !== null) {
+      const rest = m[2].trim()
+      const unitMatch = rest.match(/^([a-zA-Z]+)\s+(.+)$/)
+      if (unitMatch) {
+        return { name: unitMatch[2].trim(), qty, unit: unitMatch[1].trim() }
+      }
+      return { name: rest, qty, unit: '' }
+    }
   }
-  return { name: line.trim(), qty: 1, unit: '' }
+  return { name: trimmed, qty: 1, unit: '' }
 }
 
 function toSteps(instructions: unknown): string[] {
