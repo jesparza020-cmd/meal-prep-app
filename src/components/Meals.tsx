@@ -140,7 +140,7 @@ function RecipeEditor({
   const f = Number(fat) || 0
   const kcal = Math.round(kcalFromMacros(p, c, f))
 
-  const macrosEntered = protein !== '' && carbs !== '' && fat !== ''
+  const macrosEntered = !macrosMissing || (protein !== '' && carbs !== '' && fat !== '')
 
   const save = () => {
     if (!name.trim()) return
