@@ -4,6 +4,7 @@ export interface SolverItem {
   perServing: Macros
   minScale: number
   maxScale: number
+  targetKcal?: number // soft per-meal calorie target; omitted = no balance pull
 }
 
 export interface SolverResult {
@@ -17,6 +18,10 @@ const DIMS: Dim[] = ['kcal', 'protein', 'carbs', 'fat']
 
 // Preference weights: prioritise hitting calories, then protein, then carbs/fat.
 const PREF: Record<Dim, number> = { kcal: 3, protein: 2, carbs: 1, fat: 1 }
+
+// Soft pull of each meal toward its share of the daily calories. Kept below the
+// daily-kcal preference (3) so balance never overrides hitting the day's total.
+const SHARE_PREF = 1
 
 function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x))
@@ -47,6 +52,7 @@ export function solveScales(items: SolverItem[], target: Targets): SolverResult 
     carbs: PREF.carbs / Math.max(target.carbs, 1) ** 2,
     fat: PREF.fat / Math.max(target.fat, 1) ** 2,
   }
+  const wShare = SHARE_PREF / Math.max(target.kcal, 1) ** 2
 
   // Initialise uniformly to roughly hit the calorie target.
   const baseKcal = items.reduce((s, it) => s + it.perServing.kcal, 0)
@@ -68,6 +74,12 @@ export function solveScales(items: SolverItem[], target: Targets): SolverResult 
         num += w[d] * a[d] * others
         den += w[d] * a[d] * a[d]
       }
+      // Soft per-meal calorie target: a penalty in this item's own scale only.
+      const tk = items[i].targetKcal
+      if (tk !== undefined) {
+        num += wShare * a.kcal * -tk
+        den += wShare * a.kcal * a.kcal
+      }
       const ideal = den > 0 ? -num / den : scales[i]
       const next = clamp(ideal, items[i].minScale, items[i].maxScale)
       maxDelta = Math.max(maxDelta, Math.abs(next - scales[i]))
@@ -79,6 +91,12 @@ export function solveScales(items: SolverItem[], target: Targets): SolverResult 
   const totals = totalsFor(items, scales)
   let error = 0
   for (const d of DIMS) error += w[d] * (totals[d] - target[d]) ** 2
+  // Fold per-meal balance into the score so the planner prefers balanceable combos.
+  items.forEach((item, i) => {
+    if (item.targetKcal !== undefined) {
+      error += wShare * (item.perServing.kcal * scales[i] - item.targetKcal) ** 2
+    }
+  })
 
   return { scales, totals, error }
 }
