@@ -29,21 +29,6 @@ npm test         # solver + planner unit tests
 npm run build    # type-check + production build (PWA) into dist/
 ```
 
-## Deploy to GitHub Pages + install on your phone
-
-1. Create a GitHub repo named **`meal-prep-app`** (the name must match `base` in
-   `vite.config.ts`; change both if you use a different name).
-2. Push this project to the repo's `main` branch.
-3. In the repo: **Settings → Pages → Build and deployment → Source = GitHub Actions.**
-4. The included workflow (`.github/workflows/deploy.yml`) builds and publishes on
-   every push. Your app will be at
-   `https://<your-username>.github.io/meal-prep-app/`.
-5. On your iPhone, open that URL in Safari → **Share → Add to Home Screen.**
-   It now opens like a native app and works offline.
-
-> Data lives only on the device you use. To move to a new phone you'd re-enter
-> targets and any custom meals (single-device by design for v1).
-
 ## Deployment (Cloudflare Pages)
 
 This app deploys to Cloudflare Pages (static PWA + the `functions/` serverless API).
