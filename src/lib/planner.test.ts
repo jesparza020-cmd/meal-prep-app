@@ -116,6 +116,41 @@ describe('generatePlan', () => {
   })
 })
 
+describe('generatePlan calorie balance', () => {
+  it('keeps each meal near its slot share instead of a lopsided split', () => {
+    const b = recipe('breakfast', {})
+    const l = recipe('lunch', {})
+    const d = recipe('dinner', {})
+    const lib = [b, l, d]
+    // Macros are 5x the per-serving sum, so any distribution hits the macro
+    // totals; only the per-meal kcal share decides the split.
+    const t: Targets = { kcal: 1500, protein: 125, carbs: 150, fat: 50 }
+    const config = defaultConfig()
+    config.snack.include = false
+    config.shake.include = false
+
+    const plan = generatePlan(lib, t, config, [])
+
+    const kcalFor = (slot: Slot) => {
+      const r = lib.find((x) => x.id === plan.slots[slot])!
+      return r.perServing.kcal * (plan.scales[slot] ?? 0)
+    }
+    const bk = kcalFor('breakfast')
+    const ln = kcalFor('lunch')
+    const dn = kcalFor('dinner')
+
+    // Shares over breakfast/lunch/dinner: 25/30/30 -> ~29.4/35.3/35.3% of 1500
+    // => ~441 / ~529 / ~529, not a flat 500/500/500.
+    expect(bk).toBeGreaterThan(400)
+    expect(bk).toBeLessThan(480)
+    expect(ln).toBeGreaterThan(500)
+    expect(dn).toBeGreaterThan(500)
+    expect(bk).toBeLessThan(ln)
+    expect(plan.totals.kcal).toBeGreaterThan(1450)
+    expect(plan.totals.kcal).toBeLessThan(1550)
+  })
+})
+
 describe('recalcScales', () => {
   it('recomputes scales within each recipe\'s bounds for the current slots', () => {
     const lib = library()
