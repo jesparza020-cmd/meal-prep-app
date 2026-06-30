@@ -25,7 +25,8 @@ describe('validateDraft', () => {
   })
 
   it('rejects a missing name', () => {
-    const { name, ...rest } = valid
+    const rest: Partial<typeof valid> = { ...valid }
+    delete rest.name
     expect(() => validateDraft(rest)).toThrow()
   })
 
