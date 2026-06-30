@@ -23,6 +23,11 @@ export interface Ingredient {
   unit: string;
 }
 
+export interface ImportSource {
+  kind: 'image' | 'pdf' | 'url';
+  ref?: string; // source URL for url imports
+}
+
 export interface Recipe {
   id: string;
   name: string;
@@ -35,6 +40,7 @@ export interface Recipe {
   maxScale: number; // largest portion multiplier allowed
   source: 'seed' | 'custom';
   usableForSlots?: Slot[]; // slots this meal can fill; defaults to [slot]
+  importedFrom?: ImportSource; // provenance for imported recipes
 }
 
 export type Targets = Macros;
